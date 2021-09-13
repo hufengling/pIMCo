@@ -1,16 +1,24 @@
 Package: IMCo
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Functionality to couple two or more MRI modalities using PCA
+Version: 0.0.0.1
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Fengling",
+           family = "Hu",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+           email = "fengling.hu@pennmedicine.upenn.edu",
+           comment = c(ORCID = "0000-0003-1081-5038"))
+Description: Takes inputs of two or more pre-processed MRI images from the same subject along with mask to apply, if desired. For each voxel in the image/mask, calculates strength of coupling (scaled first eigenvalue) based on Gaussian-weighted local neighborhood. Returns output of one coupled antsImage.
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
+Imports: 
+    magrittr,
+    ANTsR,
+    ANTsRCore,
+    extrantsr,
+    fslr,
+    neurobase,
+    rlist,
+    stringr
