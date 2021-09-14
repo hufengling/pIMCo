@@ -9,9 +9,8 @@ imco_pca(
   nhoods,
   nWts,
   mask_indices,
-  ref = 1,
   verbose = TRUE,
-  outDir = NULL,
+  full_pca_dir = NULL,
   propMiss = NULL,
   pcaType = NULL,
   matrixType = NULL,
@@ -27,11 +26,9 @@ imco_pca(
 
 \item{mask_indices}{TODO}
 
-\item{ref}{TODO}
-
 \item{verbose}{TRUE or FALSE}
 
-\item{outDir}{TODO}
+\item{full_pca_dir}{TODO}
 
 \item{propMiss}{TODO}
 

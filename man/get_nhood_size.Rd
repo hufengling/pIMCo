@@ -4,18 +4,10 @@
 \alias{get_nhood_size}
 \title{Calculate size of neighborhood}
 \usage{
-get_nhood_size(
-  fwhm = NULL,
-  radius = NULL,
-  vDims = NULL,
-  brainMask,
-  verbose = TRUE
-)
+get_nhood_size(fwhm = NULL, vDims = NULL, brainMask, verbose = TRUE)
 }
 \arguments{
 \item{fwhm}{numeric value of full width at half maximum}
-
-\item{radius}{numeric value of desired neighborhood radius (deprecated - specifying fwhm is preferred)}
 
 \item{vDims}{numeric vector of voxel dimensions}
 

@@ -32,7 +32,6 @@ get_weights <- function(offsets, voxelDims, sigma) {
 #' Calculate size of neighborhood
 #'
 #' @param fwhm numeric value of full width at half maximum
-#' @param radius numeric value of desired neighborhood radius (deprecated - specifying fwhm is preferred)
 #' @param vDims numeric vector of voxel dimensions
 #' @param brainMask antsImage
 #' @param verbose TRUE or FALSE
@@ -47,101 +46,81 @@ get_weights <- function(offsets, voxelDims, sigma) {
 #' }
 #' @importFrom fslr fslsmooth
 #' @importFrom extrantsr check_ants ants2oro
-get_nhood_size <- function(fwhm = NULL, radius = NULL, vDims = NULL, brainMask, verbose = TRUE) {
+get_nhood_size <- function(fwhm = NULL, vDims = NULL, brainMask, verbose = TRUE) {
   if (is.null(vDims)) {
     stop("Must specify a vector of voxel size in mm")
   }
-  if (is.null(fwhm) & is.null(radius)) {
+  if (is.null(fwhm)) {
     stop("Must specify fwhm")
   }
-  if (is.null(fwhm) & !is.null(radius)) {
-    warning("Running legacy implementation")
-
-    # Results are unreliable because unequal voxel dimensions should correspond to a rectangular neighborhood but a square is made using rep(radius, 3)
-    if (length(unique(vDims)) == 1) {
-      warning("The images input have different voxel dimensions and results in this case are unreliable")
-    }
-
-    radius <- floor(radius)
-    if (radius < 1) {
-      stop("Radius must be at least 1")
-    }
-    sigma <- (radius^2) * (-3 / 2) / log(0.005)
-    radius <- rep(radius, 3)
-    res <- list(v_radius = radius, sigma = sigma)
-  } else {
-    if (fwhm <= 0) {
-      stop("fwhm must be positive")
-    }
-
-    # Load brain mask
-    bMask <- extrantsr::check_ants(brainMask)
-
-    ######################################
-    # FWHM => sigma
-    # Note: We specify FWHM in mm and
-    #       radius in voxels from center.
-    # Using 2.35482 which is what FSL uses
-    # Note 2.35482 \approx 2*sqrt(2*log(2))
-    ######################################
-    sigma <- fwhm / 2.35482
-    bMaskOro <- extrantsr::ants2oro(brainMask)
-    bMaskOro <- bMaskOro * 0
-    midVoxel <- floor(dim(bMaskOro) / 2)
-    bMaskOro[midVoxel[1], midVoxel[2], midVoxel[3]] <- 1
-    sm <- fslr::fslsmooth(bMaskOro, sigma = sigma)
-    # AMV implementation
-    # Set diam to match vDims x,y,z
-    # x direction length
-    diamx <- sum(sm[, midVoxel[2], midVoxel[3]] != 0)
-    # y direction length
-    diamy <- sum(sm[midVoxel[1], , midVoxel[3]] != 0)
-    # z direction length
-    diamz <- sum(sm[midVoxel[1], midVoxel[2], ] != 0)
-    # create radius vector
-    radius <- c((diamx - 1) / 2, (diamy - 1) / 2, (diamz - 1) / 2)
-    if (any(radius < 1)) {
-      stop("FWHM is too small for at least one side of the neighborhood")
-    }
-
-    # Message the mm and voxel dimensions
-    if (verbose == TRUE) {
-      # Message the x,y,z diameter length in voxels
-      message(paste0(
-        "# Neighborhood diameters in voxels are as follows: \n",
-        "# \t x=", diamx, "\n",
-        "# \t y=", diamy, "\n",
-        "# \t z=", diamz, "\n"
-      ))
-      # Message the dimension x,y,z diameter length in voxels
-      message(paste0("# Neighborhood is x=", diamx, " by y=", diamy, " by z=", diamz, " voxels"))
-
-      # Message the x,y,z diameter length in mm
-      message(paste0(
-        "# Neighborhood diameters in mm are as follows: \n",
-        "# \t x=", diamx * vDims[1], "\n",
-        "# \t y=", diamy * vDims[2], "\n",
-        "# \t z=", diamz * vDims[3], "\n"
-      ))
-
-      # Message the dimension x,y,z diameter length in mm
-      message(paste0("# Neighborhood is x=", diamx * vDims[1], " by y=", diamy * vDims[2], " by z=", diamz * vDims[3], " mm"))
-    }
-
-    res <- list(
-      v_radius = radius,
-      v_diamx = diamx,
-      v_diamy = diamy,
-      v_diamz = diamz,
-      mm_radius = radius * vDims,
-      mm_diamx = diamx * vDims[1],
-      mm_diamy = diamy * vDims[2],
-      mm_diamz = diamz * vDims[3],
-      sigma = sigma
-    )
+  if (fwhm <= 0) {
+    stop("fwhm must be positive")
   }
 
-  return(res)
+  # Load brain mask
+  bMask <- extrantsr::check_ants(brainMask)
+
+  # FWHM => sigma
+  # Note: We specify FWHM in mm.
+  # Using 2.35482 which is what FSL uses
+  # Note 2.35482 \approx 2*sqrt(2*log(2))
+  sigma <- fwhm / 2.35482
+  bMaskOro <- extrantsr::ants2oro(brainMask)
+  bMaskOro <- bMaskOro * 0
+  midVoxel <- floor(dim(bMaskOro) / 2)
+  bMaskOro[midVoxel[1], midVoxel[2], midVoxel[3]] <- 1
+  sm <- fslr::fslsmooth(bMaskOro, sigma = sigma)
+  # AMV implementation
+  # Set diam to match vDims x,y,z
+  # x direction length
+  diamx <- sum(sm[, midVoxel[2], midVoxel[3]] != 0)
+  # y direction length
+  diamy <- sum(sm[midVoxel[1], , midVoxel[3]] != 0)
+  # z direction length
+  diamz <- sum(sm[midVoxel[1], midVoxel[2], ] != 0)
+  # create radius vector
+  radius <- c((diamx - 1) / 2, (diamy - 1) / 2, (diamz - 1) / 2)
+  if (any(radius < 1)) {
+    stop("FWHM is too small for at least one side of the neighborhood")
+  }
+
+  # Message the mm and voxel dimensions
+  if (verbose == TRUE) {
+    # Message the x,y,z diameter length in voxels
+    message(paste0(
+      "# Neighborhood diameters in voxels are as follows: \n",
+      "# \t x=", diamx, "\n",
+      "# \t y=", diamy, "\n",
+      "# \t z=", diamz, "\n"
+    ))
+    # Message the dimension x,y,z diameter length in voxels
+    message(paste0("# Neighborhood is x=", diamx, " by y=", diamy, " by z=", diamz, " voxels"))
+
+    # Message the x,y,z diameter length in mm
+    message(paste0(
+      "# Neighborhood diameters in mm are as follows: \n",
+      "# \t x=", diamx * vDims[1], "\n",
+      "# \t y=", diamy * vDims[2], "\n",
+      "# \t z=", diamz * vDims[3], "\n"
+    ))
+
+    # Message the dimension x,y,z diameter length in mm
+    message(paste0("# Neighborhood is x=", diamx * vDims[1], " by y=", diamy * vDims[2], " by z=", diamz * vDims[3], " mm"))
+  }
+
+  res <- list(
+    v_radius = radius,
+    v_diamx = diamx,
+    v_diamy = diamy,
+    v_diamz = diamz,
+    mm_radius = radius * vDims,
+    mm_diamx = diamx * vDims[1],
+    mm_diamy = diamy * vDims[2],
+    mm_diamz = diamz * vDims[3],
+    sigma = sigma
+  )
+
+return(res)
 }
 
 #' Performs Intermodal Coupling
@@ -150,16 +129,10 @@ get_nhood_size <- function(fwhm = NULL, radius = NULL, vDims = NULL, brainMask, 
 #' @param brainMask antsImage mask to apply before coupling (optional)
 #' @param out_dir string for output directory
 #' @param out_name TODO
-#' @param subMask TODO
-#' @param ref TODO
 #' @param fwhm numerical value of full width at half maximum for calculating neighborhood size
-#' @param thresh TODO
-#' @param radius TODO
-#' @param reverse TODO
 #' @param verbose TRUE or FALSE
-#' @param outDir TODO
+#' @param full_pca_dir string directory if the full PCA extraction is desired. Otherwise, NULL by default and only coupled image is returned.
 #' @param propMiss TODO
-#' @param corstr TODO
 #' @param pcaType "global" or "unscaled"
 #' @param matrixType "wcov" (weighted covariance) or "wcor" (weighted correlation)
 #' @param returnNeighborhoods TODO
@@ -178,13 +151,12 @@ get_nhood_size <- function(fwhm = NULL, radius = NULL, vDims = NULL, brainMask, 
 #' }
 #' @importFrom ANTsRCore antsGetSpacing getNeighborhoodInMask
 #' @importFrom neurobase zscore_img
-imco <- function(files, brainMask, out_dir, out_name, subMask = NULL, ref = 1, fwhm = NULL, thresh = 0.005, radius = NULL, reverse = FALSE, verbose = TRUE, outDir = NULL, propMiss = NULL, corstr = NULL, pcaType = NULL, matrixType = NULL, returnNeighborhoods = FALSE) {
-  if (!(is.numeric(ref) & ref <= length(files))) {
-    stop("check reference modality specification")
-  }
-  if (is.null(propMiss)) {
-    propMiss <- 1
-  }
+imco <- function(files, brainMask, out_dir, out_name,
+                 fwhm = NULL,
+                 verbose = TRUE,
+                 full_pca_dir = NULL, propMiss = 1,
+                 pcaType = NULL, matrixType = NULL,
+                 returnNeighborhoods = FALSE) {
   nf <- length(files)
   fileList <- extrantsr::check_ants(files)
   for (i in 2:length(files)) {
@@ -214,7 +186,6 @@ imco <- function(files, brainMask, out_dir, out_name, subMask = NULL, ref = 1, f
 
   nhood_dims <- get_nhood_size(
     fwhm = fwhm,
-    radius = radius,
     vDims = vDims,
     brainMask = bMask,
     verbose = verbose
@@ -231,14 +202,8 @@ imco <- function(files, brainMask, out_dir, out_name, subMask = NULL, ref = 1, f
     cat("# Extracting neighborhood data \n")
   }
   # Neighborhood data from each modality
-  if (!is.null(subMask)) {
-    sMask <- extrantsr::check_ants(subMask)
-    mask_indices <- which(as.array(sMask) > 0)
-    nhoods <- lapply(fileList, function(x) ANTsRCore::getNeighborhoodInMask(image = x, mask = sMask, radius = nhood_dims$v_radius, spatial.info = TRUE, boundary.condition = "image"))
-  } else {
-    mask_indices <- which(as.array(bMask) > 0)
-    nhoods <- lapply(fileList, function(x) ANTsRCore::getNeighborhoodInMask(image = x, mask = bMask, radius = nhood_dims$v_radius, spatial.info = TRUE))
-  }
+  mask_indices <- which(as.array(bMask) > 0)
+  nhoods <- lapply(fileList, function(x) ANTsRCore::getNeighborhoodInMask(image = x, mask = bMask, radius = nhood_dims$v_radius, spatial.info = TRUE))
 
   if (is.null(fwhm) == FALSE) {
     # Check that the dimension from getting neighborhoods is the same as
@@ -265,8 +230,8 @@ imco <- function(files, brainMask, out_dir, out_name, subMask = NULL, ref = 1, f
     nhoods = nhoods,
     nWts = nWts,
     mask_indices = mask_indices,
-    ref = ref, verbose = verbose,
-    outDir = outDir,
+    verbose = verbose,
+    full_pca_dir = full_pca_dir,
     propMiss = propMiss,
     pcaType = pcaType,
     matrixType = matrixType,
@@ -286,16 +251,14 @@ imco <- function(files, brainMask, out_dir, out_name, subMask = NULL, ref = 1, f
 #' @param nhoods TODO
 #' @param nWts TODO
 #' @param mask_indices TODO
-#' @param ref TODO
 #' @param verbose TRUE or FALSE
-#' @param outDir TODO
+#' @param full_pca_dir TODO
 #' @param propMiss TODO
 #' @param pcaType "global" or "unscaled"
 #' @param matrixType "wcov" or "wcor"
 #' @param returnNeighborhoods TRUE or FALSE
 #'
 #' @return TODO
-#' @export
 #'
 #' @examples
 #' \dontrun{
@@ -304,7 +267,7 @@ imco <- function(files, brainMask, out_dir, out_name, subMask = NULL, ref = 1, f
 #' @importFrom rlist list.rbind
 #' @importFrom stats cov
 #' @importFrom ANTsRCore antsImageWrite
-imco_pca <- function(files, nhoods, nWts, mask_indices, ref = 1, verbose = TRUE, outDir = NULL, propMiss = NULL, pcaType = NULL, matrixType = NULL, returnNeighborhoods = FALSE) {
+imco_pca <- function(files, nhoods, nWts, mask_indices, verbose = TRUE, full_pca_dir = NULL, propMiss = NULL, pcaType = NULL, matrixType = NULL, returnNeighborhoods = FALSE) {
   # Restructure to get eigen decomp at each voxel
   imgVals <- lapply(nhoods, function(x) x$values)
   bigDf <- rlist::list.rbind(imgVals)
@@ -418,8 +381,8 @@ imco_pca <- function(files, nhoods, nWts, mask_indices, ref = 1, verbose = TRUE,
       }
     )))
     evals[[j]] <- make_ants_image(vec = tmp, mask_indices = mask_indices, reference = files[[1]])
-    if (!is.null(outDir)) {
-      ANTsRCore::antsImageWrite(evals[[j]], file.path(outDir, paste0("eigenValue-", j, ".nii.gz")))
+    if (!is.null(full_pca_dir)) {
+      ANTsRCore::antsImageWrite(evals[[j]], file.path(full_pca_dir, paste0("eigenValue-", j, ".nii.gz")))
     }
     components[[j]] <- list()
     for (k in 1:length(files)) {
@@ -431,8 +394,8 @@ imco_pca <- function(files, nhoods, nWts, mask_indices, ref = 1, verbose = TRUE,
         } # Removed y = rmnaListCenter from function because it doesn't show up in the function.
       })))
       components[[j]][[k]] <- make_ants_image(vec = tmp, mask_indices = mask_indices, reference = files[[1]])
-      if (!is.null(outDir)) {
-        ANTsRCore::antsImageWrite(components[[j]][[k]], file.path(outDir, paste0("component", j, "-", k, ".nii.gz")))
+      if (!is.null(full_pca_dir)) {
+        ANTsRCore::antsImageWrite(components[[j]][[k]], file.path(full_pca_dir, paste0("component", j, "-", k, ".nii.gz")))
       }
     }
   }
@@ -504,16 +467,16 @@ get_pvals_by_voxel <- function(voxel_vector, predictors) {
   }
 
   regression <- stats::lm(voxel_vector ~
-                     sex + ageAtScan1 +
-                     race2 + pcaslRelMeanRMSMotion + restRelMeanRMSMotion,
-                   data = predictors) %>%
+                            sex + ageAtScan1 +
+                            race2 + pcaslRelMeanRMSMotion + restRelMeanRMSMotion,
+                          data = predictors) %>%
     summary()
   reg_pvals <- regression$coefficients[c(2, 3), 4]
 
   interaction_regression <- stats::lm(voxel_vector ~
-                                 sex * ageAtScan1 +
-                                 race2 + pcaslRelMeanRMSMotion + restRelMeanRMSMotion,
-                               data = predictors) %>%
+                                        sex * ageAtScan1 +
+                                        race2 + pcaslRelMeanRMSMotion + restRelMeanRMSMotion,
+                                      data = predictors) %>%
     summary()
   int_pvals <- interaction_regression$coefficients[8, 4]
 

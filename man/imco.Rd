@@ -9,16 +9,10 @@ imco(
   brainMask,
   out_dir,
   out_name,
-  subMask = NULL,
-  ref = 1,
   fwhm = NULL,
-  thresh = 0.005,
-  radius = NULL,
-  reverse = FALSE,
   verbose = TRUE,
-  outDir = NULL,
-  propMiss = NULL,
-  corstr = NULL,
+  full_pca_dir = NULL,
+  propMiss = 1,
   pcaType = NULL,
   matrixType = NULL,
   returnNeighborhoods = FALSE
@@ -33,25 +27,13 @@ imco(
 
 \item{out_name}{TODO}
 
-\item{subMask}{TODO}
-
-\item{ref}{TODO}
-
 \item{fwhm}{numerical value of full width at half maximum for calculating neighborhood size}
-
-\item{thresh}{TODO}
-
-\item{radius}{TODO}
-
-\item{reverse}{TODO}
 
 \item{verbose}{TRUE or FALSE}
 
-\item{outDir}{TODO}
+\item{full_pca_dir}{string directory if the full PCA extraction is desired. Otherwise, NULL by default and only coupled image is returned.}
 
 \item{propMiss}{TODO}
-
-\item{corstr}{TODO}
 
 \item{pcaType}{"global" or "unscaled"}
 
