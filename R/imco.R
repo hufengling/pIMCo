@@ -125,7 +125,7 @@ return(res)
 
 #' Performs Intermodal Coupling
 #'
-#' @param files list of lists, A_i, where A_i is a list of file paths for modality i
+#' @param files list of files to couple
 #' @param brainMask antsImage mask to apply before coupling (optional)
 #' @param out_dir string for output directory
 #' @param out_name TODO
@@ -142,9 +142,9 @@ return(res)
 #'
 #' @examples
 #' \dontrun{
-#' mod1_files <- list("mod1_subj1.nii.gz", "mod1_subj2.nii.gz")
-#' mod2_files <- list("mod2_subj1.nii.gz", "mod2_subj2.nii.gz")
-#' mod3_files <- list("mod3_subj1.nii.gz", "mod3_subj2.nii.gz")
+#' mod1_files <- list("mod1_subj1.nii.gz")
+#' mod2_files <- list("mod2_subj1.nii.gz")
+#' mod3_files <- list("mod3_subj1.nii.gz")
 #' imco(files = list(mod1_files, mod2_files, mod3_files),
 #'     brainMask = "inst/extdata/gm10_pcals_rest.nii.gz",
 #'     out_dir = coupled_images, out_name = "", type = "pca", fwhm = 3)
@@ -240,7 +240,7 @@ imco <- function(files, brainMask, out_dir, out_name,
   eigenvalues <- pcaObj$eigenValueImages
   eigenvalue_sum <- Reduce("+", eigenvalues)
   coupling <- eigenvalues[[1]] / eigenvalue_sum
-  antsImageWrite(coupling, file.path(out_dir, paste(out_name, "coupling.nii.gz")))
+  antsImageWrite(coupling, file.path(out_dir, paste0(out_name, "_coupling.nii.gz")))
 
   return(coupling)
 }
