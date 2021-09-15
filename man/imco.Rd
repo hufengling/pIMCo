@@ -19,7 +19,7 @@ imco(
 )
 }
 \arguments{
-\item{files}{list of lists, A_i, where A_i is a list of file paths for modality i}
+\item{files}{list of files to couple}
 
 \item{brainMask}{antsImage mask to apply before coupling (optional)}
 
@@ -49,9 +49,9 @@ Performs Intermodal Coupling
 }
 \examples{
 \dontrun{
-mod1_files <- list("mod1_subj1.nii.gz", "mod1_subj2.nii.gz")
-mod2_files <- list("mod2_subj1.nii.gz", "mod2_subj2.nii.gz")
-mod3_files <- list("mod3_subj1.nii.gz", "mod3_subj2.nii.gz")
+mod1_files <- list("mod1_subj1.nii.gz")
+mod2_files <- list("mod2_subj1.nii.gz")
+mod3_files <- list("mod3_subj1.nii.gz")
 imco(files = list(mod1_files, mod2_files, mod3_files),
     brainMask = "inst/extdata/gm10_pcals_rest.nii.gz",
     out_dir = coupled_images, out_name = "", type = "pca", fwhm = 3)

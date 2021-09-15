@@ -1,3 +1,17 @@
+#' Makes ANTs Image in mask out of vector of intensities
+#'
+#' @param vec numerical vector of intensities
+#' @param mask_indices binary array - 1 in mask and 0 out of mask
+#' @param reference antsImage to supply metadata
+#'
+#' @return antsImage
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' TODO
+#' }
+#' @importFrom ANTsRCore as.antsImage
 make_ants_image <- function(vec, mask_indices, reference) {
   arr <- array(0, dim = dim(reference))
   arr[mask_indices] <- vec
