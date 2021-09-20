@@ -12,10 +12,10 @@ imco(
   fwhm = NULL,
   verbose = TRUE,
   full_pca_dir = NULL,
-  propMiss = 1,
-  pcaType = NULL,
-  matrixType = NULL,
-  returnNeighborhoods = FALSE
+  prop_miss = 1,
+  pca_type = NULL,
+  matrix_type = NULL,
+  return_neighborhoods = FALSE
 )
 }
 \arguments{
@@ -33,13 +33,13 @@ imco(
 
 \item{full_pca_dir}{string directory if the full PCA extraction is desired. Otherwise, NULL by default and only coupled image is returned.}
 
-\item{propMiss}{TODO}
+\item{prop_miss}{TODO}
 
-\item{pcaType}{"global" or "unscaled"}
+\item{pca_type}{"global" or "unscaled"}
 
-\item{matrixType}{"wcov" (weighted covariance) or "wcor" (weighted correlation)}
+\item{matrix_type}{"wcov" (weighted covariance) or "wcor" (weighted correlation)}
 
-\item{returnNeighborhoods}{TODO}
+\item{return_neighborhoods}{TODO}
 }
 \value{
 list of coupled antsImages and file paths

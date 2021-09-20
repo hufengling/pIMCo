@@ -134,7 +134,7 @@ get_nhood_size <- function(fwhm = NULL, vDims = NULL, brainMask, verbose = TRUE)
     sigma = sigma
   )
 
-return(res)
+  return(res)
 }
 
 #' Performs Intermodal Coupling
@@ -146,10 +146,10 @@ return(res)
 #' @param fwhm numerical value of full width at half maximum for calculating neighborhood size
 #' @param verbose TRUE or FALSE
 #' @param full_pca_dir string directory if the full PCA extraction is desired. Otherwise, NULL by default and only coupled image is returned.
-#' @param propMiss TODO
-#' @param pcaType "global" or "unscaled"
-#' @param matrixType "wcov" (weighted covariance) or "wcor" (weighted correlation)
-#' @param returnNeighborhoods TODO
+#' @param prop_miss TODO
+#' @param pca_type "global" or "unscaled"
+#' @param matrix_type "wcov" (weighted covariance) or "wcor" (weighted correlation)
+#' @param return_neighborhoods TODO
 #'
 #' @return list of coupled antsImages and file paths
 #' @export
@@ -168,9 +168,9 @@ return(res)
 imco <- function(files, brainMask, out_dir, out_name,
                  fwhm = NULL,
                  verbose = TRUE,
-                 full_pca_dir = NULL, propMiss = 1,
-                 pcaType = NULL, matrixType = NULL,
-                 returnNeighborhoods = FALSE) {
+                 full_pca_dir = NULL, prop_miss = 1,
+                 pca_type = NULL, matrix_type = NULL,
+                 return_neighborhoods = FALSE) {
   nf <- length(files)
   fileList <- extrantsr::check_ants(files)
   for (i in 2:length(files)) {
@@ -190,7 +190,7 @@ imco <- function(files, brainMask, out_dir, out_name,
     stop("Voxel dimensions do not match the brain mask")
   }
 
-  if (pcaType == "global") {
+  if (pca_type == "global") {
     fileList <- lapply(fileList, neurobase::zscore_img)
     fileList <- lapply(fileList, check_ants)
   }
@@ -238,20 +238,21 @@ imco <- function(files, brainMask, out_dir, out_name,
   # Thus, have commented out the following line and require latest release of ANTsR version 0.3.3
   # inds = inds + 1
   # Will use to compute distances from center voxel
-  nWts <- get_weights(offs, vDims, sigma = nhood_dims$sigma)
-  pcaObj <- imco_pca(
+  nhood_weights <- get_weights(offs, vDims, sigma = nhood_dims$sigma)
+  pca_object <- imco_pca(
     files = fileList,
     nhoods = nhoods,
-    nWts = nWts,
+    nhood_weights = nhood_weights,
     mask_indices = mask_indices,
     verbose = verbose,
     full_pca_dir = full_pca_dir,
-    propMiss = propMiss,
-    pcaType = pcaType,
-    matrixType = matrixType,
-    returnNeighborhoods = returnNeighborhoods
+    prop_miss = prop_miss,
+    pca_type = pca_type,
+    matrix_type = matrix_type,
+    return_neighborhoods = return_neighborhoods
   )
-  eigenvalues <- pcaObj$eigenValueImages
+
+  eigenvalues <- pca_object$eigenValueImages
   eigenvalue_sum <- Reduce("+", eigenvalues)
   coupling <- eigenvalues[[1]] / eigenvalue_sum
   antsImageWrite(coupling, file.path(out_dir, paste0(out_name, "_coupling.nii.gz")))
@@ -263,14 +264,14 @@ imco <- function(files, brainMask, out_dir, out_name,
 #'
 #' @param files TODO
 #' @param nhoods TODO
-#' @param nWts TODO
+#' @param nhood_weights TODO
 #' @param mask_indices TODO
 #' @param verbose TRUE or FALSE
 #' @param full_pca_dir TODO
-#' @param propMiss TODO
-#' @param pcaType "global" or "unscaled"
-#' @param matrixType "wcov" or "wcor"
-#' @param returnNeighborhoods TRUE or FALSE
+#' @param prop_miss TODO
+#' @param pca_type "global" or "unscaled"
+#' @param matrix_type "wcov" or "wcor"
+#' @param return_neighborhoods TRUE or FALSE
 #'
 #' @return TODO
 #'
@@ -281,19 +282,19 @@ imco <- function(files, brainMask, out_dir, out_name,
 #' @importFrom rlist list.rbind
 #' @importFrom stats cov
 #' @importFrom ANTsRCore antsImageWrite
-imco_pca <- function(files, nhoods, nWts, mask_indices, verbose = TRUE, full_pca_dir = NULL, propMiss = NULL, pcaType = NULL, matrixType = NULL, returnNeighborhoods = FALSE) {
+imco_pca <- function(files, nhoods, nhood_weights, mask_indices, verbose = TRUE, full_pca_dir = NULL, prop_miss = NULL, pca_type = NULL, matrix_type = NULL, return_neighborhoods = FALSE) {
   # Restructure to get eigen decomp at each voxel
   imgVals <- lapply(nhoods, function(x) x$values)
   bigDf <- rlist::list.rbind(imgVals)
   matList <- lapply(split(bigDf, col(bigDf)), function(x) matrix(x, ncol = length(files)))
   rmnaList <- lapply(matList, function(x) {
-    w <- nWts
+    w <- nhood_weights
     xRows <- apply(as.matrix(x), 1, function(z) {
       !any(is.na(z))
     })
     if (sum(xRows) > 2) {
-      # If the proportion of missing voxels is greater than propMiss, return NA
-      if (mean(!xRows) > propMiss) {
+      # If the proportion of missing voxels is greater than prop_miss, return NA
+      if (mean(!xRows) > prop_miss) {
         return(NA)
       } else {
         return(cbind(w[xRows], as.matrix(x)[xRows, ]))
@@ -301,35 +302,23 @@ imco_pca <- function(files, nhoods, nWts, mask_indices, verbose = TRUE, full_pca
     }
     return(NA)
   })
-  if (returnNeighborhoods == TRUE) {
+  if (return_neighborhoods == TRUE) {
     return(rmnaList)
   }
   if (verbose) {
     cat("# Computing weighted covariances \n")
   }
-  if (pcaType == "unscaled" | pcaType == "global") {
-    rmnaListCenter <- lapply(rmnaList, function(x) {
-      if (!is.na(x)[1]) {
-        w <- x[, 1]
-        newx <- scale(x[, -1], center = TRUE, scale = FALSE)
-        return(cbind(w, newx))
-      }
-      return(NA)
-    })
-  }
-  if (pcaType == "scaled") {
-    rmnaListCenter <- lapply(rmnaList, function(x) {
-      if (!is.na(x)[1]) {
-        w <- x[, 1]
-        newx <- scale(x[, -1], center = TRUE, scale = TRUE)
-        return(cbind(w, newx))
-      }
-      return(NA)
-    })
-  }
+  rmnaListCenter <- lapply(rmnaList, function(x) {
+    if (!is.na(x)[1]) {
+      w <- x[, 1]
+      newx <- scale(x[, -1], center = TRUE, scale = FALSE)
+      return(cbind(w, newx))
+    }
+    return(NA)
+  })
   rm(rmnaList)
   # Weighted cov of each matrix in matList
-  if (matrixType == "wcov") {
+  if (matrix_type == "wcov") {
     wcovList <- lapply(rmnaListCenter, function(x) {
       if (!is.na(x)[1]) {
         w <- x[, 1]
@@ -339,7 +328,7 @@ imco_pca <- function(files, nhoods, nWts, mask_indices, verbose = TRUE, full_pca
       return(NA)
     })
   }
-  if (matrixType == "wcor") {
+  if (matrix_type == "wcor") {
     wcovList <- lapply(rmnaListCenter, function(x) {
       if (!is.na(x)[1]) {
         w <- x[, 1]
@@ -349,24 +338,15 @@ imco_pca <- function(files, nhoods, nWts, mask_indices, verbose = TRUE, full_pca
       return(NA)
     })
   }
-  if (matrixType == "unweighted") {
-    wcovList <- lapply(rmnaListCenter, function(x) {
-      if (!is.na(x)[1]) {
-        newx <- x[, -1]
-        return(cov(newx))
-      }
-      return(NA)
-    })
-  }
+
   wcovList_corrected <- lapply(wcovList, function(x) {
-    diag <- diag(x)
-    if (any(is.na(diag) | diag == 0)) {
-      diag(x) <- rep(1, nrow(x))
-      x[is.na(x)] <- 0
+    if (any(is.na(x) | x == 0)) {
+      x <- NA
     }
 
     return(x)
   })
+
   if (verbose) {
     cat("# Computing weighted PCs \n")
   }
@@ -384,29 +364,35 @@ imco_pca <- function(files, nhoods, nWts, mask_indices, verbose = TRUE, full_pca
   evals <- list()
   components <- list()
   for (j in 1:length(files)) {
-    tmp <- as.vector(rlist::list.rbind(lapply(
-      eigenList,
-      function(x) {
-        if (!is.na(x)[1]) {
-          return(x$values[j])
-        } else {
-          return(NA)
-        }
-      }
-    )))
+    tmp <- as.vector(
+      rlist::list.rbind(
+        lapply(
+          eigenList,
+          function(x) {
+            if (!is.na(x)[1]) {
+              return(x$values[j])}
+            else {
+              return(NA) }
+          })))
+
     evals[[j]] <- make_ants_image(vec = tmp, mask_indices = mask_indices, reference = files[[1]])
+
     if (!is.null(full_pca_dir)) {
       ANTsRCore::antsImageWrite(evals[[j]], file.path(full_pca_dir, paste0("eigenValue-", j, ".nii.gz")))
     }
+
     components[[j]] <- list()
     for (k in 1:length(files)) {
-      tmp <- as.vector(rlist::list.rbind(lapply(eigenList, function(x) {
-        if (!is.na(x)[1]) {
-          return(x$vectors[k, j])
-        } else {
-          return(NA)
-        } # Removed y = rmnaListCenter from function because it doesn't show up in the function.
-      })))
+      tmp <- as.vector(
+        rlist::list.rbind(
+          lapply(
+            eigenList, function(x) {
+              if (!is.na(x)[1]) {
+                return(x$vectors[k, j]) }
+              else {
+                return(NA) }
+            })))
+
       components[[j]][[k]] <- make_ants_image(vec = tmp, mask_indices = mask_indices, reference = files[[1]])
       if (!is.null(full_pca_dir)) {
         ANTsRCore::antsImageWrite(components[[j]][[k]], file.path(full_pca_dir, paste0("component", j, "-", k, ".nii.gz")))

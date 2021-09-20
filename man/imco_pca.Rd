@@ -7,14 +7,14 @@
 imco_pca(
   files,
   nhoods,
-  nWts,
+  nhood_weights,
   mask_indices,
   verbose = TRUE,
   full_pca_dir = NULL,
-  propMiss = NULL,
-  pcaType = NULL,
-  matrixType = NULL,
-  returnNeighborhoods = FALSE
+  prop_miss = NULL,
+  pca_type = NULL,
+  matrix_type = NULL,
+  return_neighborhoods = FALSE
 )
 }
 \arguments{
@@ -22,7 +22,7 @@ imco_pca(
 
 \item{nhoods}{TODO}
 
-\item{nWts}{TODO}
+\item{nhood_weights}{TODO}
 
 \item{mask_indices}{TODO}
 
@@ -30,13 +30,13 @@ imco_pca(
 
 \item{full_pca_dir}{TODO}
 
-\item{propMiss}{TODO}
+\item{prop_miss}{TODO}
 
-\item{pcaType}{"global" or "unscaled"}
+\item{pca_type}{"global" or "unscaled"}
 
-\item{matrixType}{"wcov" or "wcor"}
+\item{matrix_type}{"wcov" or "wcor"}
 
-\item{returnNeighborhoods}{TRUE or FALSE}
+\item{return_neighborhoods}{TRUE or FALSE}
 }
 \value{
 TODO
