@@ -67,6 +67,9 @@ get_nhood_size <- function(fwhm = NULL, vDims = NULL, brainMask, verbose = TRUE)
   if (is.null(fwhm)) {
     stop("Must specify fwhm")
   }
+  if (!is.numeric(fwhm)) {
+    stop("fwhm must be numeric")
+  }
   if (fwhm <= 0) {
     stop("fwhm must be positive")
   }
@@ -194,6 +197,12 @@ imco <- function(files, brainMask, out_dir, out_name,
     fileList <- lapply(fileList, neurobase::zscore_img)
     fileList <- lapply(fileList, check_ants)
   }
+  if (!is.numeric(fwhm)) {
+    fwhm <- as.numeric(fwhm)
+    if (!is.numeric(fwhm)) {
+      stop("FWHM must be a numeric value")
+    }
+  }
 
   # Dimension of each voxel in mm
   vDims <- ANTsRCore::antsGetSpacing(fileList[[1]])
@@ -274,6 +283,7 @@ imco <- function(files, brainMask, out_dir, out_name,
 #' @param return_neighborhoods TRUE or FALSE
 #'
 #' @return TODO
+#' @export
 #'
 #' @examples
 #' \dontrun{
@@ -282,11 +292,17 @@ imco <- function(files, brainMask, out_dir, out_name,
 #' @importFrom rlist list.rbind
 #' @importFrom stats cov
 #' @importFrom ANTsRCore antsImageWrite
-imco_pca <- function(files, nhoods, nhood_weights, mask_indices, verbose = TRUE, full_pca_dir = NULL, prop_miss = NULL, pca_type = NULL, matrix_type = NULL, return_neighborhoods = FALSE) {
+imco_pca <- function(files,
+                     nhoods, nhood_weights,
+                     mask_indices,
+                     verbose = TRUE, full_pca_dir = NULL,
+                     prop_miss = NULL, pca_type = NULL, matrix_type = NULL,
+                     return_neighborhoods = FALSE) {
   # Restructure to get eigen decomp at each voxel
   imgVals <- lapply(nhoods, function(x) x$values)
   bigDf <- rlist::list.rbind(imgVals)
-  matList <- lapply(split(bigDf, col(bigDf)), function(x) matrix(x, ncol = length(files)))
+  matList <- lapply(split(bigDf, col(bigDf)),
+                    function(x) matrix(x, ncol = length(files)))
   rmnaList <- lapply(matList, function(x) {
     w <- nhood_weights
     xRows <- apply(as.matrix(x), 1, function(z) {
@@ -342,6 +358,7 @@ imco_pca <- function(files, nhoods, nhood_weights, mask_indices, verbose = TRUE,
   wcovList_corrected <- lapply(wcovList, function(x) {
     if (any(is.na(x) | x == 0)) {
       x <- NA
+      cat("Found an NA")
     }
 
     return(x)
