@@ -355,18 +355,33 @@ imco_pca <- function(files,
     })
   }
 
-  wcovList_corrected <- lapply(wcovList, function(x) {
-    if (any(is.na(x) | x == 0)) {
-      x <- NA
-      cat("Found an NA")
+  # coupling coefficient doesn't behave well in 3-D if pairwise correlations are negative
+  # at brain edges, if all voxels in neighborhood in one modality are 0, coupling shouldn't be calculated
+  count_na <- 0
+  wcovList_corrected <- vector(mode = "list", length = length(wcovList))
+  for (i in 1:length(wcovList)) {
+    if (any(is.na(current) | current == 0)) {
+      current <- NA
+      count_na <- count_na + 1
     }
+    wcovList_corrected[[i]] <- abs(current)
+  }
 
-    return(x)
-  })
+  if (verbose) {
+    cat(paste("# Coupling coefficient was not calculated for", count_na, "voxels \n"))
+  }
+
+  # wcovList_corrected <- lapply(wcovList, function(x) {
+  #   if (any(is.na(x) | x == 0)) {
+  #     x <- NA
+  #   }
+  #   return(x)
+  # })
 
   if (verbose) {
     cat("# Computing weighted PCs \n")
   }
+
   eigenList <- lapply(wcovList_corrected, function(x) {
     if (!is.na(x)[1]) {
       return(eigen(x))
@@ -374,7 +389,9 @@ imco_pca <- function(files,
       return(NA)
     }
   })
+
   rm(wcovList)
+
   if (verbose) {
     cat("# Extracting IMCo images \n")
   }
