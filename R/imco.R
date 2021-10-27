@@ -72,7 +72,7 @@ imco <- function(files, brain_mask,
     }
   }
 
-  if (pca_type != "global_wcov" | pca_type != "unscaled_wcor") {
+  if (pca_type != "global_wcov" & pca_type != "unscaled_wcor") {
     stop("PCA type must be \"global_wcov\ or \"unscaled_wcor\"")
   }
 
