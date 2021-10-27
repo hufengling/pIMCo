@@ -1,158 +1,15 @@
-#' Makes ANTs Image in mask out of vector of intensities
-#'
-#' @param vec numerical vector of intensities
-#' @param mask_indices binary array - 1 in mask and 0 out of mask
-#' @param reference antsImage to supply metadata
-#'
-#' @return antsImage
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' TODO
-#' }
-#' @importFrom ANTsRCore as.antsImage
-make_ants_image <- function(vec, mask_indices, reference) {
-  arr <- array(0, dim = dim(reference))
-  arr[mask_indices] <- vec
-  x <- ANTsRCore::as.antsImage(arr, reference = reference)
-  return(x)
-}
-
-#' Assign weights to each voxel in neighborhood
-#'
-#' Assign weights to each voxel in neighborhood for weighted PCA/regression.
-#' Weights are assigned according to sigma (generated from FWHM)
-#'
-#' @param offsets numerical vector of voxel distances from central voxel
-#' @param voxelDims numerical vector of voxel dimensions
-#' @param sigma numeric defined from fwhm
-#'
-#' @return numerical vector of weights defined based on sigma
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' get_weights(offsets = c(3, 1, 3), voxelDims = c(2, 2, 2), sigma = sigma)
-#' }
-get_weights <- function(offsets, voxelDims, sigma) {
-  dists <- t(apply(offsets, 1, function(x, y) x * y, y = voxelDims))
-  sqNorm <- apply(dists * dists, 1, function(x) sum(x))
-  # Constant doesn't matter because we would rescale by
-  # max weight so that center voxel would be be 1
-  return(exp(-1 * sqNorm / (2 * sigma^2)))
-}
-
-#' Calculate size of neighborhood
-#'
-#' @param fwhm numeric value of full width at half maximum
-#' @param vDims numeric vector of voxel dimensions
-#' @param brainMask antsImage
-#' @param verbose TRUE or FALSE
-#'
-#' @return list of voxel properties
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' get_nhood_size(fwhm = 3, vDims = c(2, 2, 2),
-#' brainMask = "inst/extdata/gm10_pcals_rest.nii.gz", verbose = TRUE)
-#' }
-#' @importFrom fslr fslsmooth
-#' @importFrom extrantsr check_ants ants2oro
-get_nhood_size <- function(fwhm = NULL, vDims = NULL, brainMask, verbose = TRUE) {
-  if (is.null(vDims)) {
-    stop("Must specify a vector of voxel size in mm")
-  }
-  if (is.null(fwhm)) {
-    stop("Must specify fwhm")
-  }
-  if (!is.numeric(fwhm)) {
-    stop("fwhm must be numeric")
-  }
-  if (fwhm <= 0) {
-    stop("fwhm must be positive")
-  }
-
-  # Load brain mask
-  bMask <- extrantsr::check_ants(brainMask)
-
-  # FWHM => sigma
-  # Note: We specify FWHM in mm.
-  # Using 2.35482 which is what FSL uses
-  # Note 2.35482 \approx 2*sqrt(2*log(2))
-  sigma <- fwhm / 2.35482
-  bMaskOro <- extrantsr::ants2oro(brainMask)
-  bMaskOro <- bMaskOro * 0
-  midVoxel <- floor(dim(bMaskOro) / 2)
-  bMaskOro[midVoxel[1], midVoxel[2], midVoxel[3]] <- 1
-  sm <- fslr::fslsmooth(bMaskOro, sigma = sigma)
-  # AMV implementation
-  # Set diam to match vDims x,y,z
-  # x direction length
-  diamx <- sum(sm[, midVoxel[2], midVoxel[3]] != 0)
-  # y direction length
-  diamy <- sum(sm[midVoxel[1], , midVoxel[3]] != 0)
-  # z direction length
-  diamz <- sum(sm[midVoxel[1], midVoxel[2], ] != 0)
-  # create radius vector
-  radius <- c((diamx - 1) / 2, (diamy - 1) / 2, (diamz - 1) / 2)
-  if (any(radius < 1)) {
-    stop("FWHM is too small for at least one side of the neighborhood")
-  }
-
-  # Message the mm and voxel dimensions
-  if (verbose == TRUE) {
-    # Message the x,y,z diameter length in voxels
-    message(paste0(
-      "# Neighborhood diameters in voxels are as follows: \n",
-      "# \t x=", diamx, "\n",
-      "# \t y=", diamy, "\n",
-      "# \t z=", diamz, "\n"
-    ))
-    # Message the dimension x,y,z diameter length in voxels
-    message(paste0("# Neighborhood is x=", diamx, " by y=", diamy, " by z=", diamz, " voxels"))
-
-    # Message the x,y,z diameter length in mm
-    message(paste0(
-      "# Neighborhood diameters in mm are as follows: \n",
-      "# \t x=", diamx * vDims[1], "\n",
-      "# \t y=", diamy * vDims[2], "\n",
-      "# \t z=", diamz * vDims[3], "\n"
-    ))
-
-    # Message the dimension x,y,z diameter length in mm
-    message(paste0("# Neighborhood is x=", diamx * vDims[1], " by y=", diamy * vDims[2], " by z=", diamz * vDims[3], " mm"))
-  }
-
-  res <- list(
-    v_radius = radius,
-    v_diamx = diamx,
-    v_diamy = diamy,
-    v_diamz = diamz,
-    mm_radius = radius * vDims,
-    mm_diamx = diamx * vDims[1],
-    mm_diamy = diamy * vDims[2],
-    mm_diamz = diamz * vDims[3],
-    sigma = sigma
-  )
-
-  return(res)
-}
-
 #' Performs Intermodal Coupling
 #'
-#' @param files list of files to couple
-#' @param brainMask antsImage mask to apply before coupling (optional)
-#' @param out_dir string for output directory
-#' @param out_name TODO
+#' @param files list of string paths to files to couple
+#' @param brain_mask antsImage mask to apply before coupling (optional)
+#' @param out_dir string path to output directory
+#' @param out_name string prefix for file name. Final name is "outname_coupling.nii.gz"
 #' @param fwhm numerical value of full width at half maximum for calculating neighborhood size
 #' @param verbose TRUE or FALSE
-#' @param full_pca_dir string directory if the full PCA extraction is desired. Otherwise, NULL by default and only coupled image is returned.
-#' @param prop_miss TODO
-#' @param pca_type "global" or "unscaled"
-#' @param matrix_type "wcov" (weighted covariance) or "wcor" (weighted correlation)
-#' @param return_neighborhoods TODO
+#' @param prop_miss proportion of voxels in a neighborhood allowed to be missing
+#' @param pca_type "global_wcov" or "unscaled_wcor"
+#' @param use_ratio default FALSE for (logit of 1st eigenvalue scaled to 0-1), TRUE for (1st eigenvalue/total variance)
+#' @param return_coupling default FALSE to write image to out_dir, TRUE to return coupling image without writing
 #'
 #' @return list of coupled antsImages and file paths
 #' @export
@@ -168,13 +25,15 @@ get_nhood_size <- function(fwhm = NULL, vDims = NULL, brainMask, verbose = TRUE)
 #' }
 #' @importFrom ANTsRCore antsGetSpacing getNeighborhoodInMask
 #' @importFrom neurobase zscore_img
-imco <- function(files, brainMask, out_dir, out_name,
+imco <- function(files, brain_mask,
+                 out_dir = NULL, out_name = NULL,
                  fwhm = NULL,
                  verbose = TRUE,
-                 full_pca_dir = NULL, prop_miss = 1,
-                 pca_type = NULL, matrix_type = NULL,
-                 return_neighborhoods = FALSE) {
-  nf <- length(files)
+                 prop_miss = 1,
+                 pca_type = c("global_wcov", "unscaled_wcor"),
+                 use_ratio = FALSE,
+                 return_coupling = FALSE) {
+
   fileList <- extrantsr::check_ants(files)
   for (i in 2:length(files)) {
     if (!all(dim(fileList[[i - 1]]) == dim(fileList[[i]]))) {
@@ -183,25 +42,49 @@ imco <- function(files, brainMask, out_dir, out_name,
     if (!all(ANTsRCore::antsGetSpacing(fileList[[i - 1]]) == ANTsRCore::antsGetSpacing(fileList[[i]]))) {
       stop("Voxel dimensions do not match")
     }
+    if (!all(ANTsRCore::antsGetDirection(fileList[[i - 1]]) == ANTsRCore::antsGetDirection(fileList[[i]]))) {
+      stop("Image directions do not match")
+    }
+    if (!all(ANTsRCore::antsGetOrigin(fileList[[i - 1]]) == ANTsRCore::antsGetOrigin(fileList[[i]]))) {
+      stop("Image origins/locations do not match")
+    }
   }
   # Read in brain mask
-  bMask <- extrantsr::check_ants(brainMask)
-  if (!all(dim(bMask) == dim(fileList[[1]]))) {
+  mask <- extrantsr::check_ants(brain_mask)
+  if (!all(dim(mask) == dim(fileList[[1]]))) {
     stop("Image dimensions do not match the brain mask")
   }
-  if (!all(ANTsRCore::antsGetSpacing(bMask) == ANTsRCore::antsGetSpacing(fileList[[1]]))) {
+  if (!all(ANTsRCore::antsGetSpacing(mask) == ANTsRCore::antsGetSpacing(fileList[[1]]))) {
     stop("Voxel dimensions do not match the brain mask")
   }
 
-  if (pca_type == "global") {
-    fileList <- lapply(fileList, neurobase::zscore_img)
-    fileList <- lapply(fileList, check_ants)
-  }
   if (!is.numeric(fwhm)) {
     fwhm <- as.numeric(fwhm)
     if (!is.numeric(fwhm)) {
-      stop("FWHM must be a numeric value")
+      stop("fwhm must be a numeric value")
     }
+  }
+
+  if (!is.numeric(prop_miss)) {
+    prop_miss <- as.numeric(prop_miss)
+    if (!is.numeric(prop_miss)) {
+      stop("prop_miss must be a numeric value")
+    }
+  }
+
+  if (pca_type != "global_wcov" | pca_type != "unscaled_wcor") {
+    stop("PCA type must be \"global_wcov\ or \"unscaled_wcor\"")
+  }
+
+  if (!return_coupling) {
+    if (is.null(out_dir) | is.null(out_name)) {
+      stop("To write coupling image, out_dir and out_name must be specified.")
+    }
+  }
+
+  if (pca_type == "global_wcov") {
+    fileList <- lapply(fileList, neurobase::zscore_img)
+    fileList <- lapply(fileList, check_ants)
   }
 
   # Dimension of each voxel in mm
@@ -210,14 +93,14 @@ imco <- function(files, brainMask, out_dir, out_name,
   nhood_dims <- get_nhood_size(
     fwhm = fwhm,
     vDims = vDims,
-    brainMask = bMask,
+    brainMask = mask,
     verbose = verbose
   )
 
   # Assign anything outside brain mask to NA
   fileList <- lapply(fileList, function(x) {
     newx <- x
-    newx[bMask == 0] <- NA
+    newx[mask == 0] <- NA
     return(newx)
   })
 
@@ -225,8 +108,8 @@ imco <- function(files, brainMask, out_dir, out_name,
     cat("# Extracting neighborhood data \n")
   }
   # Neighborhood data from each modality
-  mask_indices <- which(as.array(bMask) > 0)
-  nhoods <- lapply(fileList, function(x) ANTsRCore::getNeighborhoodInMask(image = x, mask = bMask, radius = nhood_dims$v_radius, spatial.info = TRUE))
+  mask_indices <- which(as.array(mask) > 0)
+  nhoods <- lapply(fileList, function(x) ANTsRCore::getNeighborhoodInMask(image = x, mask = mask, radius = nhood_dims$v_radius, spatial.info = TRUE))
 
   if (is.null(fwhm) == FALSE) {
     # Check that the dimension from getting neighborhoods is the same as
@@ -242,344 +125,24 @@ imco <- function(files, brainMask, out_dir, out_name,
   # Will use to map back to niftis
   inds <- nhoods[[1]]$indices
   offs <- nhoods[[1]]$offsets
-  # ANTsR version 0.3.2 used 0 first index instead of 1
-  # This was changed here: https://github.com/stnava/ANTsR/commit/706148aa994d414c9efd76e9292ae99351e2c4be
-  # Thus, have commented out the following line and require latest release of ANTsR version 0.3.3
-  # inds = inds + 1
-  # Will use to compute distances from center voxel
+
   nhood_weights <- get_weights(offs, vDims, sigma = nhood_dims$sigma)
-  pca_object <- imco_pca(
+  coupling <- imco_pca(
     files = fileList,
     nhoods = nhoods,
     nhood_weights = nhood_weights,
     mask_indices = mask_indices,
     verbose = verbose,
-    full_pca_dir = full_pca_dir,
     prop_miss = prop_miss,
     pca_type = pca_type,
-    matrix_type = matrix_type,
-    return_neighborhoods = return_neighborhoods
+    use_ratio = use_ratio
   )
 
-  eigenvalues <- pca_object$eigenValueImages
-  eigenvalue_sum <- Reduce("+", eigenvalues)
-  coupling <- eigenvalues[[1]] / eigenvalue_sum
-  antsImageWrite(coupling, file.path(out_dir, paste0(out_name, "_coupling.nii.gz")))
-
-  return(coupling)
-}
-
-#' Intermodal Coupling with PCA
-#'
-#' @param files TODO
-#' @param nhoods TODO
-#' @param nhood_weights TODO
-#' @param mask_indices TODO
-#' @param verbose TRUE or FALSE
-#' @param full_pca_dir TODO
-#' @param prop_miss TODO
-#' @param pca_type "global" or "unscaled"
-#' @param matrix_type "wcov" or "wcor"
-#' @param return_neighborhoods TRUE or FALSE
-#'
-#' @return TODO
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' TODO
-#' }
-#' @importFrom rlist list.rbind
-#' @importFrom stats cov
-#' @importFrom ANTsRCore antsImageWrite
-imco_pca <- function(files,
-                     nhoods, nhood_weights,
-                     mask_indices,
-                     verbose = TRUE, full_pca_dir = NULL,
-                     prop_miss = NULL, pca_type = NULL, matrix_type = NULL,
-                     return_neighborhoods = FALSE) {
-  # Restructure to get eigen decomp at each voxel
-  imgVals <- lapply(nhoods, function(x) x$values)
-  bigDf <- rlist::list.rbind(imgVals)
-  matList <- lapply(split(bigDf, col(bigDf)),
-                    function(x) matrix(x, ncol = length(files)))
-  rmnaList <- lapply(matList, function(x) {
-    w <- nhood_weights
-    xRows <- apply(as.matrix(x), 1, function(z) {
-      !any(is.na(z))
-    })
-    if (sum(xRows) > 2) {
-      # If the proportion of missing voxels is greater than prop_miss, return NA
-      if (mean(!xRows) > prop_miss) {
-        return(NA)
-      } else {
-        return(cbind(w[xRows], as.matrix(x)[xRows, ]))
-      }
-    }
-    return(NA)
-  })
-  if (return_neighborhoods == TRUE) {
-    return(rmnaList)
-  }
-  if (verbose) {
-    cat("# Computing weighted covariances \n")
-  }
-  rmnaListCenter <- lapply(rmnaList, function(x) {
-    if (!is.na(x)[1]) {
-      w <- x[, 1]
-      newx <- scale(x[, -1], center = TRUE, scale = FALSE)
-      return(cbind(w, newx))
-    }
-    return(NA)
-  })
-  rm(rmnaList)
-  # Weighted cov of each matrix in matList
-  if (matrix_type == "wcov") {
-    wcovList <- lapply(rmnaListCenter, function(x) {
-      if (!is.na(x)[1]) {
-        w <- x[, 1]
-        newx <- x[, -1]
-        return(stats::cov.wt(newx, wt = w, center = FALSE)$cov)
-      }
-      return(NA)
-    })
-  }
-  if (matrix_type == "wcor") {
-    wcovList <- lapply(rmnaListCenter, function(x) {
-      if (!is.na(x)[1]) {
-        w <- x[, 1]
-        newx <- x[, -1]
-        return(stats::cov.wt(newx, wt = w, center = FALSE, cor = T)$cor)
-      }
-      return(NA)
-    })
-  }
-
-  # coupling coefficient doesn't behave well in 3-D if pairwise correlations are negative
-  # at brain edges, if all voxels in neighborhood in one modality are 0, coupling shouldn't be calculated
-  count_na <- 0
-  wcovList_corrected <- vector(mode = "list", length = length(wcovList))
-  for (i in 1:length(wcovList)) {
-    if (any(is.na(current) | current == 0)) {
-      current <- NA
-      count_na <- count_na + 1
-    }
-    wcovList_corrected[[i]] <- abs(current)
-  }
-
-  if (verbose) {
-    cat(paste("# Coupling coefficient was not calculated for", count_na, "voxels \n"))
-  }
-
-  # wcovList_corrected <- lapply(wcovList, function(x) {
-  #   if (any(is.na(x) | x == 0)) {
-  #     x <- NA
-  #   }
-  #   return(x)
-  # })
-
-  if (verbose) {
-    cat("# Computing weighted PCs \n")
-  }
-
-  eigenList <- lapply(wcovList_corrected, function(x) {
-    if (!is.na(x)[1]) {
-      return(eigen(x))
-    } else {
-      return(NA)
-    }
-  })
-
-  rm(wcovList)
-
-  if (verbose) {
-    cat("# Extracting IMCo images \n")
-  }
-  evals <- list()
-  components <- list()
-  for (j in 1:length(files)) {
-    tmp <- as.vector(
-      rlist::list.rbind(
-        lapply(
-          eigenList,
-          function(x) {
-            if (!is.na(x)[1]) {
-              return(x$values[j])}
-            else {
-              return(NA) }
-          })))
-
-    evals[[j]] <- make_ants_image(vec = tmp, mask_indices = mask_indices, reference = files[[1]])
-
-    if (!is.null(full_pca_dir)) {
-      ANTsRCore::antsImageWrite(evals[[j]], file.path(full_pca_dir, paste0("eigenValue-", j, ".nii.gz")))
-    }
-
-    components[[j]] <- list()
-    for (k in 1:length(files)) {
-      tmp <- as.vector(
-        rlist::list.rbind(
-          lapply(
-            eigenList, function(x) {
-              if (!is.na(x)[1]) {
-                return(x$vectors[k, j]) }
-              else {
-                return(NA) }
-            })))
-
-      components[[j]][[k]] <- make_ants_image(vec = tmp, mask_indices = mask_indices, reference = files[[1]])
-      if (!is.null(full_pca_dir)) {
-        ANTsRCore::antsImageWrite(components[[j]][[k]], file.path(full_pca_dir, paste0("component", j, "-", k, ".nii.gz")))
-      }
-    }
-  }
-  rm(eigenList)
-
-  evals <- lapply(evals, extrantsr::ants2oro)
-  for (j in 1:length(files)) {
-    temp <- lapply(components[[j]], extrantsr::ants2oro)
-    components[[j]] <- lapply(components[[j]], extrantsr::ants2oro)
-  }
-  return(list("eigenValueImages" = evals, "eigenVectorImages" = components))
-}
-
-
-load_images <- function(dir, mask) {
-  files <- list.files(dir)
-  file_paths <- file.path(dir, files)
-  image_vector_list <- lapply(file_paths,
-                              function(x, mask) {
-                                image <- extrantsr::check_ants(x)
-                                image[mask == 0] <- NA
-                                image_vector <- image %>% as.numeric()
-                                image_vector_no_NAs <- image_vector[!is.na(image_vector)]
-                                return(image_vector_no_NAs)
-                              },
-                              mask = mask
-  )
-  return(image_vector_list)
-}
-
-transpose_list <- function(list) {
-  matrix <- list %>%
-    unlist() %>%
-    matrix(byrow = TRUE, nrow = length(list))
-  transposed_list <- lapply(seq_len(ncol(matrix)), function(i) matrix[, i])
-  return(transposed_list)
-}
-
-make_descriptive_images <- function(voxel_vector_list) {
-  descriptive_vector <- lapply(voxel_vector_list, function(voxel_vector) {
-    voxel_mean <- sum(voxel_vector)/length(voxel_vector)
-    voxel_variance <- var(voxel_vector)
-
-    return(c(voxel_mean, voxel_variance))
-  }) %>% unlist()
-
-  voxel_mean_vector <- descriptive_vector[c(T, F)]
-  voxel_variance_vector <- descriptive_vector[c(F, T)]
-
-  return(list(voxel_mean_vector, voxel_variance_vector))
-}
-
-#' Calculates pvals for each voxel
-#'
-#' @param voxel_vector vector of length 1xn, where n is number of subjects
-#' @param predictors design matrix of predictors
-#'
-#' @return vector of p-values from various models
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' get_pvals_by_voxel(1:5, matrix(1:10, nrow = 5))
-#' }
-#' @importFrom stats lm var
-get_pvals_by_voxel <- function(voxel_vector, predictors) {
-  if (length(voxel_vector) != nrow(predictors)) {
-    stop("n doesn't match")
-  }
-
-  regression <- stats::lm(voxel_vector ~
-                            sex + ageAtScan1 +
-                            race2 + pcaslRelMeanRMSMotion + restRelMeanRMSMotion,
-                          data = predictors) %>%
-    summary()
-  reg_pvals <- regression$coefficients[c(2, 3), 4]
-
-  interaction_regression <- stats::lm(voxel_vector ~
-                                        sex * ageAtScan1 +
-                                        race2 + pcaslRelMeanRMSMotion + restRelMeanRMSMotion,
-                                      data = predictors) %>%
-    summary()
-  int_pvals <- interaction_regression$coefficients[8, 4]
-
-  pvals <- c(reg_pvals, int_pvals)
-  return(pvals)
-}
-
-#' Writes p-values to antsImage
-#'
-#' @param image_list TODO
-#' @param mask TODO
-#' @param dir TODO
-#' @param is_descriptive TODO
-#' @param out_dir TODO
-#'
-#' @return TODO
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' TODO
-#' }
-#' @importFrom stringr str_split
-write_pvals <- function(image_list, mask, dir, is_descriptive = FALSE, out_dir) {
-  mask_indices <- which(as.array(mask) > 0)
-  reference <- extrantsr::check_ants(file.path(dir, list.files(dir)[[1]]))
-  file_name <- (dir %>% stringr::str_split("/"))[[1]][2]
-
-  if (is_descriptive) {
-    dir.create("three_modality/descriptive_images", showWarnings = FALSE)
-    names <- c("_mean", "_variance")
-    for (i in 1:length(image_list)) {
-      descriptive_image <- make_ants_image(image_list[[i]], mask_indices, reference)
-      ANTsRCore::antsImageWrite(
-        descriptive_image,
-        file.path(
-          out_dir,
-          paste0(file_name, names[i], ".nii.gz")
-        )
-      )
-    }
-
+  if (!return_coupling) {
+    antsImageWrite(coupling, file.path(out_dir, paste0(out_name, "_coupling.nii.gz")))
     return(NULL)
   }
-
-  for (i in 1:length(image_list)) {
-    pval_image <- make_ants_image(image_list[[i]], mask_indices, reference)
-    ANTsRCore::antsImageWrite(
-      pval_image,
-      file.path(
-        out_dir,
-        paste0(file_name, "_pval_", i, ".nii.gz")
-      )
-    )
+  else {
+    return(coupling)
   }
-
-  return(NULL)
-}
-
-hypothesis_test_voxels <- function(dir, mask, predictors, out_dir_descriptive, out_dir_pval) {
-  image_vector_list <- load_images(dir, mask)
-  voxel_vector_list <- transpose_list(image_vector_list)
-  descriptive_list <- make_descriptive_images(voxel_vector_list)
-  pvalbyvoxel_list <- parallel::mclapply(voxel_vector_list,
-                                         get_pvals_by_voxel,
-                                         predictors = predictors,
-                                         mc.cores = as.numeric(Sys.getenv("LSB_DJOB_NUMPROC")))
-  pvalbycoef_list <- transpose_list(pvalbyvoxel_list)
-
-  write_pvals(descriptive_list, mask, dir, is_descriptive = TRUE, out_dir = out_dir_descriptive)
-  write_pvals(pvalbycoef_list, mask, dir, out_dir = out_dir_pval)
 }

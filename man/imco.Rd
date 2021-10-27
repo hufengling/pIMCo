@@ -6,40 +6,37 @@
 \usage{
 imco(
   files,
-  brainMask,
-  out_dir,
-  out_name,
+  brain_mask,
+  out_dir = NULL,
+  out_name = NULL,
   fwhm = NULL,
   verbose = TRUE,
-  full_pca_dir = NULL,
   prop_miss = 1,
-  pca_type = NULL,
-  matrix_type = NULL,
-  return_neighborhoods = FALSE
+  pca_type = c("global_wcov", "unscaled_wcor"),
+  use_ratio = FALSE,
+  return_coupling = FALSE
 )
 }
 \arguments{
-\item{files}{list of files to couple}
+\item{files}{list of string paths to files to couple}
 
-\item{brainMask}{antsImage mask to apply before coupling (optional)}
+\item{brain_mask}{antsImage mask to apply before coupling (optional)}
 
-\item{out_dir}{string for output directory}
+\item{out_dir}{string path to output directory}
 
-\item{out_name}{TODO}
+\item{out_name}{string prefix for file name. Final name is "outname_coupling.nii.gz"}
 
 \item{fwhm}{numerical value of full width at half maximum for calculating neighborhood size}
 
 \item{verbose}{TRUE or FALSE}
 
-\item{full_pca_dir}{string directory if the full PCA extraction is desired. Otherwise, NULL by default and only coupled image is returned.}
+\item{prop_miss}{proportion of voxels in a neighborhood allowed to be missing}
 
-\item{prop_miss}{TODO}
+\item{pca_type}{"global_wcov" or "unscaled_wcor"}
 
-\item{pca_type}{"global" or "unscaled"}
+\item{use_ratio}{default FALSE for (logit of 1st eigenvalue scaled to 0-1), TRUE for (1st eigenvalue/total variance)}
 
-\item{matrix_type}{"wcov" (weighted covariance) or "wcor" (weighted correlation)}
-
-\item{return_neighborhoods}{TODO}
+\item{return_coupling}{default FALSE to write image to out_dir, TRUE to return coupling image without writing}
 }
 \value{
 list of coupled antsImages and file paths
