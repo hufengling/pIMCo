@@ -101,7 +101,7 @@ imco_pca <- function(files,
 
   eigen_list <- lapply(wcovList_corrected, function(x) {
     if (!is.na(x)[1]) {
-      return(eigen(x))
+      return(eigen(x), max(diag(wcovList_corrected)))
     } else {
       return(NA)
     }
@@ -114,9 +114,11 @@ imco_pca <- function(files,
   }
 
   if (!use_ratio) {
-    coupling_vec <- lapply(eigen_list, function(eigen_mat) {
+    coupling_vec <- lapply(eigen_list, function(eigen_objs) {
+      eigen_mat <- eigen_objs[[1]]
       if (!is.na(eigen_mat)[1]) {
-        scaled <- 1.5 * eigen_mat$values[1] / sum(eigen_mat$values) - 0.5 #scales possible values to min = 0, max = 1
+        dim <- length(eigen_mat$values)
+        scaled <- (dim / (dim - 1)) * eigen_mat$values[1] / sum(eigen_mat$values) - (1 / (dim - 1)) #scales possible values to min = 0, max = 1
         logit <- log(scaled) - log(1 - scaled)
         return(logit)
       }
@@ -126,15 +128,28 @@ imco_pca <- function(files,
     })
     coupling_vec <- as.vector(unlist(coupling_vec))
   } else if (use_ratio) {
-    coupling_vec <- lapply(eigen_list, function(eigen_mat) {
+    coupling_vec <- lapply(eigen_list, function(eigen_objs) { #with correct scaling!!
+      eigen_mat <- eigen_objs[[1]]
+      min_coupling <- eigen_objs[[2]]
       if (!is.na(eigen_mat)[1]) {
-        eigen_mat$values[1] / sum(eigen_mat$values)
+        scaled <- (eigen_mat$values[1] - min_coupling) / (sum(eigen_mat$values) - min_coupling) #scales possible values to min = 0, max = 1
+        logit <- log(scaled) - log(1 - scaled)
+        return(logit)
       }
       else {
         return(NA)
       }
     })
     coupling_vec <- as.vector(unlist(coupling_vec))
+    # coupling_vec <- lapply(eigen_list, function(eigen_mat) { #true ratio
+    #   if (!is.na(eigen_mat)[1]) {
+    #     eigen_mat$values[1] / sum(eigen_mat$values)
+    #   }
+    #   else {
+    #     return(NA)
+    #   }
+    # })
+    # coupling_vec <- as.vector(unlist(coupling_vec))
   }
 
   coupling <- make_ants_image(vec = coupling_vec, mask_indices = mask_indices, reference = files[[1]])
