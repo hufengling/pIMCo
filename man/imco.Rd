@@ -2,37 +2,34 @@
 % Please edit documentation in R/imco.R
 \name{imco}
 \alias{imco}
-\title{Performs Intermodal Coupling}
+\title{Performs PCA-based Intermodal Coupling}
 \usage{
 imco(
   files,
   brain_mask,
   out_dir = NULL,
   out_name = NULL,
-  fwhm = NULL,
+  fwhm = 3,
   verbose = TRUE,
-  prop_miss = 1,
-  pca_type = c("global_wcov", "unscaled_wcor"),
+  prop_miss = 0.9,
   use_ratio = FALSE,
   return_coupling = FALSE
 )
 }
 \arguments{
-\item{files}{list of string paths to files to couple}
+\item{files}{list of paths to niftis (string) or list of antsImages}
 
-\item{brain_mask}{antsImage mask to apply before coupling (optional)}
+\item{brain_mask}{path to mask nifti or antsImage mask to apply before coupling (optional)}
 
 \item{out_dir}{string path to output directory}
 
-\item{out_name}{string prefix for file name. Final name is "outname_coupling.nii.gz"}
+\item{out_name}{string prefix for file name. Final name is "'out_name'_coupling.nii.gz"}
 
-\item{fwhm}{numerical value of full width at half maximum for calculating neighborhood size}
+\item{fwhm}{numerical value of full width at half maximum for calculating neighborhood size; default is 3}
 
-\item{verbose}{TRUE or FALSE}
+\item{verbose}{TRUE or FALSE; default TRUE}
 
-\item{prop_miss}{proportion of voxels in a neighborhood allowed to be missing}
-
-\item{pca_type}{"global_wcov" or "unscaled_wcor"}
+\item{prop_miss}{proportion of voxels in a neighborhood allowed to be missing; default is 0.9}
 
 \item{use_ratio}{default FALSE for (logit of 1st eigenvalue scaled to 0-1), TRUE for (1st eigenvalue/total variance)}
 
@@ -42,15 +39,17 @@ imco(
 list of coupled antsImages and file paths
 }
 \description{
-Performs Intermodal Coupling
+Performs PCA-based Intermodal Coupling
 }
 \examples{
 \dontrun{
-mod1_files <- list("mod1_subj1.nii.gz")
-mod2_files <- list("mod2_subj1.nii.gz")
-mod3_files <- list("mod3_subj1.nii.gz")
+mod1_filepath <- "/path/to/proj/dir/mod1_subj1.nii.gz"
+mod2_filepath <- "/path/to/proj/dir/mod2_subj1.nii.gz"
+mod3_filepath <- "/path/to/proj/dir/mod3_subj1.nii.gz"
 imco(files = list(mod1_files, mod2_files, mod3_files),
-    brainMask = "inst/extdata/gm10_pcals_rest.nii.gz",
-    out_dir = coupled_images, out_name = "", type = "pca", fwhm = 3)
+    brain_mask = "/path/to/proj/dir/grey_matter_mask.nii.gz",
+    out_dir = "/path/to/proj/dir/coupled_images",
+    out_name = "subj-1",
+    fwhm = 3)
 }
 }

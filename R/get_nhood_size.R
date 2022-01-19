@@ -6,6 +6,7 @@
 #' @param verbose TRUE or FALSE
 #'
 #' @return list of voxel properties
+#' @noRd
 #'
 #' @examples
 #' \dontrun{

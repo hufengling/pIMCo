@@ -1,4 +1,4 @@
-Package: IMCo
+Package: pIMCo
 Title: Functionality to couple two or more MRI modalities using PCA
 Version: 0.0.0.1
 Authors@R: 

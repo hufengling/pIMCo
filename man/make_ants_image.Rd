@@ -24,3 +24,4 @@ Makes ANTs Image in mask out of vector of intensities
 TODO
 }
 }
+\keyword{internal}

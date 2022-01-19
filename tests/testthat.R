@@ -1,4 +1,4 @@
 library(testthat)
-library(IMCo)
+library(pIMCo)
 
-test_check("IMCo")
+test_check("pIMCo")

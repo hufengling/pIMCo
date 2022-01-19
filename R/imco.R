@@ -1,13 +1,12 @@
-#' Performs Intermodal Coupling
+#' Performs PCA-based Intermodal Coupling
 #'
-#' @param files list of string paths to files to couple
-#' @param brain_mask antsImage mask to apply before coupling (optional)
+#' @param files list of paths to niftis (string) or list of antsImages
+#' @param brain_mask path to mask nifti or antsImage mask to apply before coupling (optional)
 #' @param out_dir string path to output directory
-#' @param out_name string prefix for file name. Final name is "outname_coupling.nii.gz"
-#' @param fwhm numerical value of full width at half maximum for calculating neighborhood size
-#' @param verbose TRUE or FALSE
-#' @param prop_miss proportion of voxels in a neighborhood allowed to be missing
-#' @param pca_type "global_wcov" or "unscaled_wcor"
+#' @param out_name string prefix for file name. Final name is "'out_name'_coupling.nii.gz"
+#' @param fwhm numerical value of full width at half maximum for calculating neighborhood size; default is 3
+#' @param verbose TRUE or FALSE; default TRUE
+#' @param prop_miss proportion of voxels in a neighborhood allowed to be missing; default is 0.9
 #' @param use_ratio default FALSE for (logit of 1st eigenvalue scaled to 0-1), TRUE for (1st eigenvalue/total variance)
 #' @param return_coupling default FALSE to write image to out_dir, TRUE to return coupling image without writing
 #'
@@ -16,24 +15,24 @@
 #'
 #' @examples
 #' \dontrun{
-#' mod1_files <- list("mod1_subj1.nii.gz")
-#' mod2_files <- list("mod2_subj1.nii.gz")
-#' mod3_files <- list("mod3_subj1.nii.gz")
+#' mod1_filepath <- "/path/to/proj/dir/mod1_subj1.nii.gz"
+#' mod2_filepath <- "/path/to/proj/dir/mod2_subj1.nii.gz"
+#' mod3_filepath <- "/path/to/proj/dir/mod3_subj1.nii.gz"
 #' imco(files = list(mod1_files, mod2_files, mod3_files),
-#'     brainMask = "inst/extdata/gm10_pcals_rest.nii.gz",
-#'     out_dir = coupled_images, out_name = "", type = "pca", fwhm = 3)
+#'     brain_mask = "/path/to/proj/dir/grey_matter_mask.nii.gz",
+#'     out_dir = "/path/to/proj/dir/coupled_images",
+#'     out_name = "subj-1",
+#'     fwhm = 3)
 #' }
 #' @importFrom ANTsRCore antsGetSpacing getNeighborhoodInMask
 #' @importFrom neurobase zscore_img
 imco <- function(files, brain_mask,
                  out_dir = NULL, out_name = NULL,
-                 fwhm = NULL,
+                 fwhm = 3,
                  verbose = TRUE,
-                 prop_miss = 1,
-                 pca_type = c("global_wcov", "unscaled_wcor"),
+                 prop_miss = 0.9,
                  use_ratio = FALSE,
                  return_coupling = FALSE) {
-
   fileList <- extrantsr::check_ants(files)
   for (i in 2:length(files)) {
     if (!all(dim(fileList[[i - 1]]) == dim(fileList[[i]]))) {
@@ -72,20 +71,14 @@ imco <- function(files, brain_mask,
     }
   }
 
-  if (pca_type != "global_wcov" & pca_type != "unscaled_wcor") {
-    stop("PCA type must be \"global_wcov\ or \"unscaled_wcor\"")
-  }
-
   if (!return_coupling) {
     if (is.null(out_dir) | is.null(out_name)) {
       stop("To write coupling image, out_dir and out_name must be specified.")
     }
   }
 
-  if (pca_type == "global_wcov") {
-    fileList <- lapply(fileList, neurobase::zscore_img)
-    fileList <- lapply(fileList, check_ants)
-  }
+  fileList <- lapply(fileList, neurobase::zscore_img)
+  fileList <- lapply(fileList, check_ants)
 
   # Dimension of each voxel in mm
   vDims <- ANTsRCore::antsGetSpacing(fileList[[1]])
@@ -134,7 +127,7 @@ imco <- function(files, brain_mask,
     mask_indices = mask_indices,
     verbose = verbose,
     prop_miss = prop_miss,
-    pca_type = pca_type,
+    pca_type = "global_wcov",
     use_ratio = use_ratio
   )
 

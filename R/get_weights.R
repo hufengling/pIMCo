@@ -8,7 +8,7 @@
 #' @param sigma numeric defined from fwhm
 #'
 #' @return numerical vector of weights defined based on sigma
-#'
+#' @noRd
 #' @examples
 #' \dontrun{
 #' get_weights(offsets = c(3, 1, 3), voxelDims = c(2, 2, 2), sigma = sigma)

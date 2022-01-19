@@ -5,6 +5,7 @@
 #' @param reference antsImage to supply metadata
 #'
 #' @return antsImage
+#' @keywords internal
 #' @export
 #'
 #' @examples
