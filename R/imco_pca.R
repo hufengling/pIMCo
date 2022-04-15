@@ -9,7 +9,7 @@
 #' @param pca_type "global_wcov" or "unscaled_wcor"
 #' @param use_ratio default FALSE for (logit of 1st eigenvalue scaled to 0-1), TRUE for (1st eigenvalue/total variance)
 #'
-#' @return antsImage with couplinh values
+#' @return antsImage with coupling values
 #' @noRd
 #'
 #' @importFrom rlist list.rbind
@@ -139,7 +139,7 @@ imco_pca <- function(files,
   #   coupling_vec <- as.vector(unlist(coupling_vec))
   # }
 
-  coupling_vec <- lapply(eigen_list, function(eigen_mat) { #true ratio
+  coupling_vec <- lapply(eigen_list, function(eigen_mat) { # true ratio
     if (!is.na(eigen_mat)[1]) {
       eigen_mat$values[1] / sum(eigen_mat$values)
     }
@@ -153,6 +153,7 @@ imco_pca <- function(files,
     dim <- length(files)
     dim_rat <- dim / (dim - 1)
     coupling_vec <- (coupling_vec - (1 / dim)) * dim_rat
+    coupling_vec <- log(coupling_vec) - log(1 - coupling_vec)
   }
 
   coupling <- make_ants_image(vec = coupling_vec, mask_indices = mask_indices, reference = files[[1]])
