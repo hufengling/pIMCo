@@ -22,7 +22,7 @@ imco_pca <- function(files,
                      verbose = TRUE,
                      prop_miss = NULL,
                      pca_type = NULL,
-                     use_ratio) {
+                     use_ratio = FALSE) {
   # Restructure to get eigen decomp at each voxel
   imgVals <- lapply(nhoods, function(x) x$values)
   bigDf <- rlist::list.rbind(imgVals)
